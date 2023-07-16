@@ -1,9 +1,9 @@
 use crate::prelude::PreludePlugin;
 use bevy::prelude::*;
 use bevy::window::{ExitCondition, WindowResolution};
+use bevy_ecs_tilemap::prelude::*;
 
 mod actor;
-mod array;
 mod prelude;
 mod tilemap;
 
@@ -24,5 +24,6 @@ fn main() {
         .set(ImagePlugin::default_nearest()),
     )
     .add_plugins(PreludePlugin)
+    .add_plugins(TilemapPlugin)
     .run();
 }

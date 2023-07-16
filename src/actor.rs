@@ -46,8 +46,8 @@ pub fn spawn_unit(
     unit.t.into_sprite_sheet_bundle(
       texture_atlas_handle,
       Transform::from_xyz(
-        location.0 as f32 * 16.0 - 16 as f32 * 8.0,
-        location.1 as f32 * 16.0 - 16 as f32 * 8.0,
+        location.0 as f32 * 16.0 - 16 as f32 * 8.0 + 8.0,
+        location.1 as f32 * 16.0 - 16 as f32 * 8.0 + 8.0,
         1.0,
       ),
     ),

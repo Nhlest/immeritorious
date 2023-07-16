@@ -2,9 +2,11 @@ use crate::actor::{spawn_unit, Unit, UnitType};
 use crate::tilemap::TileMapMap;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
-use ldtk_rust::Project;
 
 pub struct PreludePlugin;
+
+#[derive(Resource, Deref)]
+pub struct TextureHandle(pub Handle<Image>);
 
 #[derive(Resource, Deref)]
 pub struct TextureAtlasHandle(pub Handle<TextureAtlas>);
@@ -21,34 +23,31 @@ impl Plugin for PreludePlugin {
     ) {
       let texture_handle = asset_server.load("spritesheet_01.png");
 
-      let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(16.0, 16.0), 23, 9, None, None);
+      let texture_atlas = TextureAtlas::from_grid(texture_handle.clone(), Vec2::new(16.0, 16.0), 23, 9, None, None);
       let texture_atlas_handle = texture_atlases.add(texture_atlas);
       commands.insert_resource(ClearColor(Color::DARK_GRAY));
+      commands.insert_resource(TextureHandle(texture_handle.clone()));
       commands.insert_resource(TextureAtlasHandle(texture_atlas_handle.clone()));
       commands.spawn(Camera2dBundle {
         projection: OrthographicProjection {
           scaling_mode: ScalingMode::FixedVertical(16.0 * 16.0),
           ..default()
         },
-        transform: Transform::from_xyz(-50.0, -8.0, 1000.0 - 0.1),
+        transform: Transform::from_xyz(-42.0, 0.0, 1000.0 - 0.1),
         ..default()
       });
       commands.spawn((
         SpriteSheetBundle {
           sprite: TextureAtlasSprite::new(175),
           texture_atlas: texture_atlas_handle,
-          transform: Transform::from_xyz(0.0, 0.0, 2.0),
+          transform: Transform::from_xyz(8.0, 8.0, 2.0),
           ..default()
         },
         Cursor,
       ));
     }
-    fn initiate_tile_map(mut commands: Commands, texture_atlas_handle: Res<TextureAtlasHandle>) {
-      let ldtk = Project::new("assets/map.ldtk");
-      let layers = ldtk.levels[0].layer_instances.as_ref().unwrap();
-      let layer = &layers[0];
-      let enums = &ldtk.defs.tilesets[0].enum_tags;
-      let tile_map = TileMapMap::with_size(16, 16, &mut commands, &texture_atlas_handle, layer, enums);
+    fn initiate_tile_map(mut commands: Commands, texture_handle: Res<TextureHandle>) {
+      let tile_map = TileMapMap::load_from_ldtk("assets/map.ldtk", &mut commands, &texture_handle);
       commands.insert_resource(tile_map);
     }
     fn spawn_units(mut commands: Commands, texture_atlas_handle: Res<TextureAtlasHandle>) {
@@ -151,7 +150,7 @@ impl Plugin for PreludePlugin {
         cx += 1;
         cy -= 1;
       }
-      cursor.translation = Vec3::new((cx as f32 - 8.0) * 16.0, (cy as f32 - 8.0) * 16.0, 2.0);
+      cursor.translation = Vec3::new((cx as f32 - 8.0) * 16.0 + 8.0, (cy as f32 - 8.0) * 16.0 + 8.0, 2.0);
     }
     app.add_systems(Update, (interaction_color, cursor));
     app.add_systems(
