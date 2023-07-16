@@ -8,6 +8,12 @@ pub struct TileMapPlugin;
 #[derive(Resource)]
 pub struct TileMapMap {}
 
+#[derive(Component, PartialEq)]
+pub enum Passibility {
+  Passable,
+  Solid,
+}
+
 impl TileMapMap {
   pub fn load_from_ldtk(file: &str, commands: &mut Commands, texture_handle: &TextureHandle) -> Self {
     let tilemap_entity = commands.spawn_empty().id();
@@ -22,18 +28,26 @@ impl TileMapMap {
     for ix in 0..tile_storage.size.x {
       for iy in 0..tile_storage.size.y {
         let tile = &layer.grid_tiles[(iy * 16 + ix) as usize];
-        // let pas = &enums[0];
-        // let sol = &enums[1];
+        let pas = &enums[0];
+        let sol = &enums[1];
         let tile_pos = TilePos::new(ix, iy);
+        let pass = if sol.tile_ids.contains(&tile.t) {
+          Passibility::Solid
+        } else {
+          Passibility::Passable
+        };
         tile_storage.set(
           &tile_pos,
           commands
-            .spawn(TileBundle {
-              position: tile_pos,
-              tilemap_id: TilemapId(tilemap_entity),
-              texture_index: TileTextureIndex(tile.t as u32),
-              ..default()
-            })
+            .spawn((
+              TileBundle {
+                position: tile_pos,
+                tilemap_id: TilemapId(tilemap_entity),
+                texture_index: TileTextureIndex(tile.t as u32),
+                ..default()
+              },
+              pass,
+            ))
             .id(),
         );
       }

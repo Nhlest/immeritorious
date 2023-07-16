@@ -1,7 +1,13 @@
-use crate::actor::{spawn_unit, Unit, UnitType};
-use crate::tilemap::TileMapMap;
+use crate::actor::{spawn_unit, Brain, BrainState, Cooldown, Unit, UnitType};
+use crate::tilemap::{Passibility, TileMapMap};
+use bevy::ecs::system::EntityCommand;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
+use bevy_ecs_tilemap::helpers::square_grid::neighbors::*;
+use bevy_ecs_tilemap::map::TilemapSize;
+use bevy_ecs_tilemap::prelude::TilePos;
+use bevy_ecs_tilemap::tiles::TileStorage;
+use pathfinding::prelude::*;
 
 pub struct PreludePlugin;
 
@@ -14,6 +20,18 @@ pub struct TextureAtlasHandle(pub Handle<TextureAtlas>);
 #[derive(Component)]
 pub struct Cursor;
 
+#[derive(Resource, Deref, DerefMut)]
+pub struct Tick(pub u64);
+
+pub struct CooldownCommand(pub u64);
+
+impl EntityCommand for CooldownCommand {
+  fn apply(self, id: Entity, world: &mut World) {
+    let wait_till = world.resource::<Tick>().0 + self.0;
+    world.entity_mut(id).insert(Cooldown(wait_till));
+  }
+}
+
 impl Plugin for PreludePlugin {
   fn build(&self, app: &mut App) {
     fn load_sprite_sheet(
@@ -25,8 +43,8 @@ impl Plugin for PreludePlugin {
 
       let texture_atlas = TextureAtlas::from_grid(texture_handle.clone(), Vec2::new(16.0, 16.0), 23, 9, None, None);
       let texture_atlas_handle = texture_atlases.add(texture_atlas);
-      commands.insert_resource(ClearColor(Color::DARK_GRAY));
-      commands.insert_resource(TextureHandle(texture_handle.clone()));
+      commands.insert_resource(ClearColor(Color::BLACK));
+      commands.insert_resource(TextureHandle(texture_handle));
       commands.insert_resource(TextureAtlasHandle(texture_atlas_handle.clone()));
       commands.spawn(Camera2dBundle {
         projection: OrthographicProjection {
@@ -55,7 +73,7 @@ impl Plugin for PreludePlugin {
         &mut commands,
         texture_atlas_handle.0.clone(),
         Unit { t: UnitType::Soldier },
-        (5, 5),
+        (4, 4),
       );
     }
     fn ui(mut commands: Commands, asset_server: ResMut<AssetServer>) {
@@ -116,7 +134,11 @@ impl Plugin for PreludePlugin {
         };
       }
     }
-    fn cursor(mut cursor: Query<&mut Transform, With<Cursor>>, input: Res<Input<KeyCode>>) {
+    fn cursor(
+      mut cursor: Query<&mut Transform, With<Cursor>>,
+      input: Res<Input<KeyCode>>,
+      mut brains: Query<&mut Brain>,
+    ) {
       let mut cursor = cursor.single_mut();
       let (mut cx, mut cy) = (
         (cursor.translation.x / 16.0 + 8.0) as i32,
@@ -150,12 +172,89 @@ impl Plugin for PreludePlugin {
         cx += 1;
         cy -= 1;
       }
+      if input.just_pressed(KeyCode::Space) {
+        let tile_pos_to = TilePos::new(cx as u32, cy as u32);
+        brains.single_mut().state = BrainState::MovingTo(tile_pos_to);
+      }
       cursor.translation = Vec3::new((cx as f32 - 8.0) * 16.0 + 8.0, (cy as f32 - 8.0) * 16.0 + 8.0, 2.0);
     }
-    app.add_systems(Update, (interaction_color, cursor));
+    fn process_brains(
+      mut commands: Commands,
+      mut brains: Query<(Entity, &mut Brain, &mut TilePos, &Unit), Without<Cooldown>>,
+      tile_storage: Query<&TileStorage>,
+      tiles: Query<&Passibility>,
+    ) {
+      let tile_storage = tile_storage.single();
+      for (entity, mut brain, mut tile_pos, unit) in &mut brains {
+        match brain.state {
+          BrainState::Idle => {}
+          BrainState::MovingTo(pos_to) => {
+            let path = astar(
+              tile_pos.as_ref(),
+              |a| {
+                Neighbors::get_square_neighboring_positions(a, &TilemapSize { x: 16, y: 16 }, true)
+                  .iter()
+                  .filter(|a| tiles.get(tile_storage.get(a).unwrap()).unwrap() == &Passibility::Passable)
+                  .map(|x| {
+                    (*x, {
+                      let d = x.x.abs_diff(a.x) + x.y.abs_diff(a.y);
+                      if d == 1 {
+                        10
+                      } else {
+                        14
+                      }
+                    })
+                  })
+                  .collect::<Vec<_>>()
+              },
+              |a| 10 * (a.x.abs_diff(pos_to.x) + a.y.abs_diff(pos_to.y)),
+              |a| *a == pos_to,
+            );
+            match path {
+              None => {}
+              Some((p, _)) => {
+                let next = p[1];
+                let d = tile_pos.x.abs_diff(next.x) + tile_pos.y.abs_diff(next.y);
+                *tile_pos = next;
+                if tile_pos.as_ref() == &pos_to {
+                  brain.state = BrainState::Idle;
+                }
+                commands.entity(entity).add(CooldownCommand(if d == 1 { 5 } else { 7 }));
+              }
+            }
+          }
+        }
+      }
+    }
+    fn increment_tick(mut tick: ResMut<Tick>) {
+      tick.0 += 1;
+    }
+    fn update_transforms(mut transforms: Query<(&mut Transform, &TilePos), With<Unit>>) {
+      for (mut transform, tile_pos) in &mut transforms {
+        transform.translation = Vec3::new(
+          (tile_pos.x as f32 - 8.0) * 16.0 + 8.0,
+          (tile_pos.y as f32 - 8.0) * 16.0 + 8.0,
+          1.0,
+        );
+      }
+    }
+    fn clear_cooldowns(mut commands: Commands, cooldowns: Query<(Entity, &Cooldown)>, tick: Res<Tick>) {
+      for (e, cd) in &cooldowns {
+        if cd.0 <= tick.0 {
+          commands.entity(e).remove::<Cooldown>();
+        }
+      }
+    }
+    app.add_systems(FixedUpdate, (increment_tick, clear_cooldowns).chain());
+    app.add_systems(
+      Update,
+      (interaction_color, cursor, (process_brains, update_transforms).chain()),
+    );
     app.add_systems(
       Startup,
       (load_sprite_sheet, apply_deferred, (initiate_tile_map, spawn_units, ui)).chain(),
     );
+    app.insert_resource(FixedTime::new_from_secs(1.0 / 20.0));
+    app.insert_resource(Tick(0));
   }
 }

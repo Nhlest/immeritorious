@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::TilePos;
 
 #[derive(Component)]
 pub struct ActorMarker;
@@ -11,10 +12,25 @@ pub struct Unit {
   pub t: UnitType,
 }
 
+#[derive(Component)]
+pub struct Cooldown(pub u64);
+
 #[derive(Copy, Clone)]
 pub enum UnitType {
   Soldier,
   Farmer,
+}
+
+#[derive(Default)]
+pub enum BrainState {
+  #[default]
+  Idle,
+  MovingTo(TilePos),
+}
+
+#[derive(Component, Default)]
+pub struct Brain {
+  pub state: BrainState,
 }
 
 impl UnitType {
@@ -40,7 +56,7 @@ pub fn spawn_unit(
   commands: &mut Commands,
   texture_atlas_handle: Handle<TextureAtlas>,
   unit: Unit,
-  location: (i32, i32),
+  location: (u32, u32),
 ) {
   commands.spawn((
     unit.t.into_sprite_sheet_bundle(
@@ -52,5 +68,7 @@ pub fn spawn_unit(
       ),
     ),
     unit,
+    TilePos::new(location.0, location.1),
+    Brain::default(),
   ));
 }
