@@ -41,17 +41,6 @@ impl Sendable for RenetServer {
   }
 }
 
-pub enum ServerChannel {
-  GameEvent,
-  GameFrame,
-}
-
-#[derive(Component, Debug, Deserialize, Serialize, Clone, Copy)]
-pub struct PolarRotation {
-  pub phi: f32,
-  pub theta: f32,
-}
-
 #[derive(Debug, Component, Serialize, Deserialize, Clone, Deref, PartialEq)]
 pub struct Pos(pub (u32, u32));
 
@@ -83,20 +72,6 @@ pub enum ServerMessage {
   },
 }
 
-impl ServerMessage {
-  pub fn cast(&self) -> Vec<u8> {
-    serialize(self).unwrap()
-  }
-}
-
-// impl Display for ServerMessage {
-//   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//     match self {
-//       ServerMessage::PlayerSpawn { .. } => f.write_str("PlayerSpawn"),
-//     }
-//   }
-// }
-
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct NetworkFrame {
   pub tick: u32,
@@ -109,9 +84,4 @@ pub enum ClientChannel {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PlayerCommand {
   MoveTo(Pos),
-}
-impl PlayerCommand {
-  pub fn cast(&self) -> Vec<u8> {
-    serialize(self).unwrap()
-  }
 }

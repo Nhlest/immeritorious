@@ -30,7 +30,7 @@ impl TileMapPlugin {
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands.insert_resource(ClearColor(Color::BLACK));
     commands.insert_resource(TextureHandle(texture_handle));
-    commands.insert_resource(TextureAtlasHandle(texture_atlas_handle.clone()));
+    commands.insert_resource(TextureAtlasHandle(texture_atlas_handle));
   }
 }
 

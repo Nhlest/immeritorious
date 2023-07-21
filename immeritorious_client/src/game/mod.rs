@@ -43,7 +43,7 @@ impl ImmeritoriousGamePlugin {
   fn cursor(
     mut cursor: Query<&mut Transform, With<Cursor>>,
     input: Res<Input<KeyCode>>,
-    mut client: ResMut<RenetClient>, // mut brains: Query<&mut Brain>,
+    mut client: ResMut<RenetClient>,
   ) {
     let mut cursor = cursor.single_mut();
     let (mut cx, mut cy) = (
@@ -79,8 +79,7 @@ impl ImmeritoriousGamePlugin {
       cy -= 1;
     }
     if input.just_pressed(KeyCode::Space) {
-      let tile_pos_to = Pos((cx as u32, cy as u32));
-      client.send(&PlayerCommand::MoveTo(tile_pos_to));
+      client.send(&PlayerCommand::MoveTo(Pos((cx as u32, cy as u32))));
     }
     cursor.translation = Vec3::new((cx as f32 - 8.0) * 16.0 + 8.0, (cy as f32 - 8.0) * 16.0 + 8.0, 2.0);
   }
@@ -117,14 +116,14 @@ impl ImmeritoriousGamePlugin {
   }
   fn main_menu(
     mut commands: Commands,
+    mut app_state: ResMut<NextState<ImmeritoriousState>>,
+    mut app_exit: EventWriter<AppExit>,
     ip_text: Query<&Text, With<ButtonTag<"IP">>>,
     connect_button: Query<&Interaction, With<ButtonTag<"Connect">>>,
     start_connect_button: Query<&Interaction, With<ButtonTag<"Start & Connect">>>,
-    quit: Query<&Interaction, With<ButtonTag<"Quit">>>,
-    mut app_state: ResMut<NextState<ImmeritoriousState>>,
-    mut app_exit: EventWriter<AppExit>,
+    quit_button: Query<&Interaction, With<ButtonTag<"Quit">>>,
   ) {
-    if *quit.single() == Interaction::Pressed {
+    if *quit_button.single() == Interaction::Pressed {
       app_exit.send(AppExit);
     }
     if *connect_button.single() == Interaction::Pressed || *start_connect_button.single() == Interaction::Pressed {
@@ -141,6 +140,9 @@ impl ImmeritoriousGamePlugin {
       app_state.set(ImmeritoriousState::Connecting);
     }
   }
+  fn clear_main_menu_ui(mut commands: Commands, ui: Query<Entity, With<Node>>) {
+    ui.iter().for_each(|e| commands.entity(e).despawn());
+  }
   fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2dBundle {
       projection: OrthographicProjection {
@@ -150,9 +152,6 @@ impl ImmeritoriousGamePlugin {
       transform: Transform::from_xyz(-42.0, 0.0, 1000.0 - 0.1),
       ..default()
     });
-  }
-  fn clear_main_menu_ui(mut commands: Commands, ui: Query<Entity, With<Node>>) {
-    ui.iter().for_each(|e| commands.entity(e).despawn());
   }
   fn spawn_cursor(mut commands: Commands, texture_atlas_handle: Res<TextureAtlasHandle>) {
     commands.spawn((

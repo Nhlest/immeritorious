@@ -26,6 +26,7 @@ impl Plugin for ImmeritoriousServerPlugin {
       (
         Self::increment_tick,
         Self::clear_cooldowns,
+        apply_deferred,
         (Self::update_system, Self::process_brains),
       )
         .chain(),
@@ -58,7 +59,7 @@ impl ImmeritoriousServerPlugin {
         ServerEvent::ClientConnected { client_id } => {
           let tiles = tile_storage
             .iter()
-            .flat_map(|x| x)
+            .flatten()
             .map(|e| tiles.get(*e).unwrap())
             .map(|(tile, pos, passibility)| (tile.clone(), pos.clone(), passibility.clone()))
             .collect::<Vec<_>>();
@@ -96,6 +97,7 @@ impl ImmeritoriousServerPlugin {
       match brain.state {
         BrainState::Idle => {}
         BrainState::MovingTo(pos_to) => {
+          // TODO: this is garbage
           let tile_pos: TilePos = pos.as_ref().into();
           let path = astar(
             &tile_pos,

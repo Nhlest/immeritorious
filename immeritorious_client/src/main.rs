@@ -8,7 +8,6 @@ use bevy::window::{ExitCondition, WindowResolution};
 use bevy_ecs_tilemap::prelude::*;
 use bevy_renet::transport::NetcodeClientPlugin;
 use bevy_renet::RenetClientPlugin;
-use game::ImmeritoriousState;
 
 mod actor;
 mod client;
