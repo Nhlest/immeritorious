@@ -35,7 +35,7 @@ pub struct Pos(pub (u32, u32));
 
 impl Into<TilePos> for &Pos {
   fn into(self) -> TilePos {
-    TilePos::new(self.0.0, self.0.1)
+    TilePos::new(self.0 .0, self.0 .1)
   }
 }
 
@@ -57,8 +57,8 @@ pub enum ServerMessage {
     units: Vec<(Entity, Unit, Pos)>,
   },
   UpdateFrame {
-    units: Vec<(Entity, Pos)>
-  }
+    units: Vec<(Entity, Pos)>,
+  },
 }
 
 impl ServerMessage {
@@ -86,7 +86,7 @@ pub enum ClientChannel {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PlayerCommand {
-  MoveTo(Pos)
+  MoveTo(Pos),
 }
 impl PlayerCommand {
   pub fn cast(&self) -> Vec<u8> {

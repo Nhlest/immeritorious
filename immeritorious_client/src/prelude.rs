@@ -6,11 +6,11 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy_ecs_tilemap::prelude::TilePos;
+use bevy_renet::renet::{DefaultChannel, RenetClient};
+use immeritorious_common::netcode::{PlayerCommand, Pos};
 use immeritorious_common::units::Unit;
 use immeritorious_server::start_server;
 use std::thread;
-use bevy_renet::renet::{DefaultChannel, RenetClient};
-use immeritorious_common::netcode::{PlayerCommand, Pos};
 
 pub struct PreludePlugin;
 
@@ -58,8 +58,7 @@ impl Plugin for PreludePlugin {
     fn cursor(
       mut cursor: Query<&mut Transform, With<Cursor>>,
       input: Res<Input<KeyCode>>,
-      mut client: ResMut<RenetClient>
-      // mut brains: Query<&mut Brain>,
+      mut client: ResMut<RenetClient>, // mut brains: Query<&mut Brain>,
     ) {
       let mut cursor = cursor.single_mut();
       let (mut cx, mut cy) = (
@@ -96,7 +95,10 @@ impl Plugin for PreludePlugin {
       }
       if input.just_pressed(KeyCode::Space) {
         let tile_pos_to = Pos((cx as u32, cy as u32));
-        client.send_message(DefaultChannel::ReliableOrdered, PlayerCommand::MoveTo(tile_pos_to).cast());
+        client.send_message(
+          DefaultChannel::ReliableOrdered,
+          PlayerCommand::MoveTo(tile_pos_to).cast(),
+        );
       }
       cursor.translation = Vec3::new((cx as f32 - 8.0) * 16.0 + 8.0, (cy as f32 - 8.0) * 16.0 + 8.0, 2.0);
     }

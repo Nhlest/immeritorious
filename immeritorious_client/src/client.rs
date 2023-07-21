@@ -2,14 +2,14 @@ use crate::actor::spawn_unit;
 use crate::prelude::{ImmeritoriousState, TextureAtlasHandle, TextureHandle};
 use crate::tilemap::TileMapMap;
 use bevy::prelude::*;
+use bevy::utils::HashMap;
+use bevy_ecs_tilemap::prelude::TilePos;
 use bevy_renet::renet::transport::{ClientAuthentication, NetcodeClientTransport};
 use bevy_renet::renet::{ConnectionConfig, DefaultChannel, RenetClient};
 use bincode::deserialize;
-use immeritorious_common::netcode::{ServerMessage, PROTOCOL_ID, Pos};
+use immeritorious_common::netcode::{ServerMessage, PROTOCOL_ID};
 use std::net::UdpSocket;
 use std::time::SystemTime;
-use bevy::utils::HashMap;
-use bevy_ecs_tilemap::prelude::TilePos;
 
 #[derive(Resource, Deref, DerefMut)]
 pub struct ServerEntities(pub HashMap<Entity, Entity>);
@@ -20,13 +20,11 @@ impl Plugin for ImmeritoriousClientPlugin {
   fn build(&self, app: &mut App) {
     app.add_systems(
       Update,
-      Self::update_system_pre_init
-        .run_if(in_state(ImmeritoriousState::Connecting))
+      Self::update_system_pre_init.run_if(in_state(ImmeritoriousState::Connecting)),
     );
     app.add_systems(
       Update,
-      Self::update_system_post_init
-        .run_if(in_state(ImmeritoriousState::ConnectedInGame))
+      Self::update_system_post_init.run_if(in_state(ImmeritoriousState::ConnectedInGame)),
     );
     app.insert_resource(ServerEntities(HashMap::new()));
   }
@@ -63,19 +61,20 @@ impl ImmeritoriousClientPlugin {
   }
   fn update_system_post_init(
     mut client: ResMut<RenetClient>,
-    mut server_entities: ResMut<ServerEntities>,
-    mut positions: Query<&mut TilePos>
+    server_entities: ResMut<ServerEntities>,
+    mut positions: Query<&mut TilePos>,
   ) {
     while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
       let message: ServerMessage = deserialize(&message).unwrap();
       match message {
-        ServerMessage::InitSession { map, units } => {
-        }
+        ServerMessage::InitSession { .. } => {}
         ServerMessage::UpdateFrame { units } => {
           for (server_entity, pos) in units {
-            let mut tile_pos = positions.get_mut(*server_entities.get(&server_entity).unwrap()).unwrap();
-            tile_pos.x = pos.0.0;
-            tile_pos.y = pos.0.1;
+            let mut tile_pos = positions
+              .get_mut(*server_entities.get(&server_entity).unwrap())
+              .unwrap();
+            tile_pos.x = pos.0 .0;
+            tile_pos.y = pos.0 .1;
           }
         }
       }

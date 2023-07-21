@@ -25,17 +25,19 @@ pub fn spawn_unit(
   unit: Unit,
   location: (u32, u32),
 ) -> Entity {
-  commands.spawn((
-    into_sprite_sheet_bundle(
-      unit.t,
-      texture_atlas_handle,
-      Transform::from_xyz(
-        location.0 as f32 * 16.0 - 16 as f32 * 8.0 + 8.0,
-        location.1 as f32 * 16.0 - 16 as f32 * 8.0 + 8.0,
-        1.0,
+  commands
+    .spawn((
+      into_sprite_sheet_bundle(
+        unit.t,
+        texture_atlas_handle,
+        Transform::from_xyz(
+          location.0 as f32 * 16.0 - 16 as f32 * 8.0 + 8.0,
+          location.1 as f32 * 16.0 - 16 as f32 * 8.0 + 8.0,
+          1.0,
+        ),
       ),
-    ),
-    unit,
-    TilePos::new(location.0, location.1),
-  )).id()
+      unit,
+      TilePos::new(location.0, location.1),
+    ))
+    .id()
 }

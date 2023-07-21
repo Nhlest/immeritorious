@@ -80,12 +80,18 @@ impl ImmeritoriousServerPlugin {
         let player_message: PlayerCommand = bincode::deserialize(&message).unwrap();
         match player_message {
           PlayerCommand::MoveTo(pos) => {
-            brains.for_each_mut(|mut brain| brain.state = BrainState::MovingTo(TilePos::new(pos.0.0, pos.0.1)));
+            brains.for_each_mut(|mut brain| brain.state = BrainState::MovingTo(TilePos::new(pos.0 .0, pos.0 .1)));
           }
         }
       }
     }
-    server.broadcast_message(DefaultChannel::ReliableOrdered, ServerMessage::UpdateFrame { units: units.iter().map(|(entity, _, pos)| (entity, pos.clone())).collect() }.cast());
+    server.broadcast_message(
+      DefaultChannel::ReliableOrdered,
+      ServerMessage::UpdateFrame {
+        units: units.iter().map(|(entity, _, pos)| (entity, pos.clone())).collect(),
+      }
+      .cast(),
+    );
   }
   fn process_brains(
     mut commands: Commands,
@@ -98,7 +104,7 @@ impl ImmeritoriousServerPlugin {
       match brain.state {
         BrainState::Idle => {}
         BrainState::MovingTo(pos_to) => {
-          let tile_pos : TilePos = pos.as_ref().into();
+          let tile_pos: TilePos = pos.as_ref().into();
           let path = astar(
             &tile_pos,
             |a| {

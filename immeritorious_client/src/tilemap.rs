@@ -53,7 +53,7 @@ impl TileMapMap {
 }
 
 impl Plugin for TileMapPlugin {
-  fn build(&self, app: &mut App) {
+  fn build(&self, _app: &mut App) {
     // app.insert_resource(TileMapMap::with_size(10, 10));
   }
 }
