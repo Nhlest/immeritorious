@@ -1,12 +1,13 @@
 use crate::actor::{Brain, BrainState, Cooldown, CooldownCommand};
+use crate::side::{ClientId, SideName};
 use crate::tilemap::ServerMap;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::helpers::square_grid::neighbors::Neighbors;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_renet::renet::transport::{NetcodeServerTransport, NetcodeTransportError, ServerAuthentication, ServerConfig};
 use bevy_renet::renet::{ConnectionConfig, DefaultChannel, RenetServer, ServerEvent};
-use immeritorious_common::netcode::{PlayerCommand, Pos, Sendable, ServerMessage, Tile, PROTOCOL_ID};
-use immeritorious_common::units::{Unit, UnitType};
+use immeritorious_common::netcode::{ClientMessage, Pos, Sendable, ServerMessage, Tile, PROTOCOL_ID};
+use immeritorious_common::units::{Side, Unit, UnitType};
 use immeritorious_common::Passibility;
 use pathfinding::prelude::astar;
 use std::net::UdpSocket;
@@ -27,7 +28,7 @@ impl Plugin for ImmeritoriousServerPlugin {
         Self::increment_tick,
         Self::clear_cooldowns,
         apply_deferred,
-        (Self::update_system, Self::process_brains),
+        (Self::process_connections, Self::update_system, Self::process_brains),
       )
         .chain(),
     );
@@ -42,21 +43,28 @@ impl Plugin for ImmeritoriousServerPlugin {
 impl ImmeritoriousServerPlugin {
   fn initiate_map(mut commands: Commands) {
     ServerMap::load_from_ldtk("immeritorious_client/assets/map.ldtk", &mut commands);
-    commands.spawn((Unit { t: UnitType::Soldier }, Pos((4, 4)), Brain::default()));
-    commands.spawn((Unit { t: UnitType::Soldier }, Pos((7, 3)), Brain::default()));
+    commands.spawn((Side(0), Unit { t: UnitType::Soldier }, Pos((4, 4)), Brain::default()));
+    commands.spawn((Side(0), Unit { t: UnitType::Soldier }, Pos((7, 3)), Brain::default()));
+    commands.spawn((Side(1), Unit { t: UnitType::Soldier }, Pos((12, 10)), Brain::default()));
   }
-  fn update_system(
+  fn process_connections(
+    mut commands: Commands,
     mut server: ResMut<RenetServer>,
     mut server_events: EventReader<ServerEvent>,
     tiles: Query<(&Tile, &Pos, &Passibility)>,
-    units: Query<(Entity, &Unit, &Pos)>,
+    units: Query<(Entity, &Side, &Unit, &Pos)>,
     tile_storage: Query<&TileStorage>,
-    mut brains: Query<&mut Brain>,
+    sides: Query<&Side, With<ClientId>>,
   ) {
     let tile_storage = tile_storage.single();
     for event in server_events.iter() {
       match event {
         ServerEvent::ClientConnected { client_id } => {
+          let clients_side = sides
+            .iter()
+            .max_by(|s1, s2| s1.0.cmp(&s2.0))
+            .map(|s| Side(s.0 + 1))
+            .unwrap_or(Side(0));
           let tiles = tile_storage
             .iter()
             .flatten()
@@ -65,25 +73,62 @@ impl ImmeritoriousServerPlugin {
             .collect::<Vec<_>>();
           let units = units
             .iter()
-            .map(|(entity, unit, pos)| (entity, unit.clone(), pos.clone()))
+            .map(|(entity, side, unit, pos)| (entity, side.clone(), unit.clone(), pos.clone()))
             .collect::<Vec<_>>();
-          server.send_to(*client_id, &ServerMessage::InitSession { map: tiles, units });
+          let side_name = SideName(format!("<UNNAMED> {}", clients_side.0).to_string());
+          println!("{} has connected", side_name.0);
+          commands.spawn((ClientId(*client_id), clients_side.clone(), side_name));
+          server.send_to(
+            *client_id,
+            &ServerMessage::InitSession {
+              map: tiles,
+              units,
+              clients_side,
+            },
+          );
         }
         ServerEvent::ClientDisconnected { .. } => {}
       }
     }
+  }
+  fn update_system(
+    mut server: ResMut<RenetServer>,
+    units: Query<(Entity, &Side, &Unit, &Pos)>,
+    brains: Query<(&mut Brain, &Side)>,
+    sides: Query<(&Side, &ClientId)>,
+    mut nicknames: Query<(&ClientId, &mut SideName)>,
+  ) {
     for client_id in server.clients_id().into_iter() {
       while let Some(message) = server.receive_message(client_id, DefaultChannel::ReliableOrdered) {
-        let player_message: PlayerCommand = bincode::deserialize(&message).unwrap();
+        let player_message: ClientMessage = bincode::deserialize(&message).unwrap();
         match player_message {
-          PlayerCommand::MoveTo(pos) => {
-            brains.for_each_mut(|mut brain| brain.state = BrainState::MovingTo(TilePos::new(pos.0 .0, pos.0 .1)));
+          ClientMessage::MoveTo(units, pos) => {
+            let side = sides
+              .iter()
+              .find(|(_, client_id_haystack)| client_id_haystack.0 as u64 == client_id)
+              .map(|(side, _)| side)
+              .unwrap();
+            units
+              .iter()
+              .map(|unit| unsafe { brains.get_unchecked(*unit) }) // TODO: remove unsafe, simple iterator?
+              .flatten()
+              .filter(|(_, side_haystack)| *side_haystack == side)
+              .for_each(|(mut brain, _)| brain.state = BrainState::MovingTo(TilePos::new(pos.0 .0, pos.0 .1)));
+          }
+          ClientMessage::Authenticate(nickname) => {
+            let mut old_nickname = nicknames
+              .iter_mut()
+              .find(|(client_id_haystack, _)| client_id_haystack.0 == client_id)
+              .map(|(_, nickname)| nickname)
+              .unwrap();
+            old_nickname.0 = nickname;
+            println!("{} authenticated as {}", client_id, old_nickname.0);
           }
         }
       }
     }
     server.broadcast(&ServerMessage::UpdateFrame {
-      units: units.iter().map(|(entity, _, pos)| (entity, pos.clone())).collect(),
+      units: units.iter().map(|(entity, _, _, pos)| (entity, pos.clone())).collect(),
     });
   }
   fn process_brains(
@@ -122,6 +167,9 @@ impl ImmeritoriousServerPlugin {
           );
           match path {
             None => {}
+            Some((p, _)) if p.len() == 1 => {
+              brain.state = BrainState::Idle;
+            }
             Some((p, _)) => {
               let next = p[1];
               let d = tile_pos.x.abs_diff(next.x) + tile_pos.y.abs_diff(next.y);

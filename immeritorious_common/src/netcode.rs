@@ -1,4 +1,4 @@
-use crate::units::Unit;
+use crate::units::{Side, Unit};
 use crate::Passibility;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 // -- ###  #    #   ###   #   #  #####  #     #  #####  #    #    #          #     #  ##### --
 // -------------------------------------------------------------------------------------------
 pub const PROTOCOL_ID: u64 = 42;
-pub const RELIABLE_CHANNEL_MAX_LENGTH: u64 = 10240;
 
 pub trait Sendable {
   fn send<T: Serialize>(&mut self, _message: &T) {}
@@ -65,23 +64,16 @@ pub struct Tile {
 pub enum ServerMessage {
   InitSession {
     map: Vec<(Tile, Pos, Passibility)>,
-    units: Vec<(Entity, Unit, Pos)>,
+    units: Vec<(Entity, Side, Unit, Pos)>,
+    clients_side: Side,
   },
   UpdateFrame {
     units: Vec<(Entity, Pos)>,
   },
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct NetworkFrame {
-  pub tick: u32,
-}
-
-pub enum ClientChannel {
-  ClientCommand,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
-pub enum PlayerCommand {
-  MoveTo(Pos),
+pub enum ClientMessage {
+  Authenticate(String),
+  MoveTo(Vec<Entity>, Pos),
 }

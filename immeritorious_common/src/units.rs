@@ -17,3 +17,6 @@ pub struct Building;
 pub struct Unit {
   pub t: UnitType,
 }
+
+#[derive(Debug, Component, Serialize, Deserialize, PartialEq, Clone, Copy)]
+pub struct Side(pub u8);

@@ -1,4 +1,5 @@
 use crate::game::ImmeritoriousGamePlugin;
+use crate::input::ImmeritoriousInputPlugin;
 use crate::tilemap::TileMapPlugin;
 use crate::ui::UiPlugin;
 use bevy::prelude::*;
@@ -10,5 +11,6 @@ impl Plugin for PreludePlugin {
     app.add_plugins(TileMapPlugin);
     app.add_plugins(ImmeritoriousGamePlugin);
     app.add_plugins(UiPlugin);
+    app.add_plugins(ImmeritoriousInputPlugin);
   }
 }

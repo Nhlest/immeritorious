@@ -5,6 +5,7 @@ use bevy_renet::RenetServerPlugin;
 
 mod actor;
 mod server;
+mod side;
 mod tilemap;
 
 pub fn start_server(ip: &str) {

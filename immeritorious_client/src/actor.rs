@@ -1,15 +1,16 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
-use immeritorious_common::units::{Unit, UnitType};
+use immeritorious_common::units::{Side, Unit, UnitType};
 
 pub fn into_sprite_sheet_bundle(
   unit_type: UnitType,
   texture_atlas_handle: Handle<TextureAtlas>,
   transform: Transform,
+  side: Side,
 ) -> SpriteSheetBundle {
   let tile = match unit_type {
-    UnitType::Soldier => 85,
-    UnitType::Farmer => 83,
+    UnitType::Soldier => 83 + 23 * side.0 as usize,
+    UnitType::Farmer => 82 + 23 * side.0 as usize,
   };
   SpriteSheetBundle {
     sprite: TextureAtlasSprite::new(tile),
@@ -23,6 +24,7 @@ pub fn spawn_unit(
   commands: &mut Commands,
   texture_atlas_handle: Handle<TextureAtlas>,
   unit: Unit,
+  side: Side,
   location: (u32, u32),
 ) -> Entity {
   commands
@@ -35,8 +37,10 @@ pub fn spawn_unit(
           location.1 as f32 * 16.0 - 16.0 * 8.0 + 8.0,
           1.0,
         ),
+        side,
       ),
       unit,
+      side,
       TilePos::new(location.0, location.1),
     ))
     .id()

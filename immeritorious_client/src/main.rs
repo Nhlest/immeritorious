@@ -12,7 +12,9 @@ use bevy_renet::RenetClientPlugin;
 mod actor;
 mod client;
 mod game;
+mod input;
 mod prelude;
+mod side;
 mod tilemap;
 mod ui;
 

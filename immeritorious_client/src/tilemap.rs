@@ -5,10 +5,13 @@ use immeritorious_common::netcode::{Pos, Tile};
 use immeritorious_common::Passibility;
 
 #[derive(Resource, Deref)]
-pub struct TextureHandle(pub Handle<Image>);
+pub struct SpriteSheetTextureHandle(pub Handle<Image>);
 
 #[derive(Resource, Deref)]
-pub struct TextureAtlasHandle(pub Handle<TextureAtlas>);
+pub struct SpriteSheetAtlasHandle(pub Handle<TextureAtlas>);
+
+#[derive(Resource, Deref)]
+pub struct ButtonsAtlasHandle(pub Handle<TextureAtlas>);
 
 pub struct TileMapPlugin;
 
@@ -24,13 +27,18 @@ impl TileMapPlugin {
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
   ) {
-    let texture_handle = asset_server.load("spritesheet_01.png");
+    let spritesheet_handle = asset_server.load("spritesheet_01.png");
+    let buttons_handle = asset_server.load("buttons.png");
 
-    let texture_atlas = TextureAtlas::from_grid(texture_handle.clone(), Vec2::new(16.0, 16.0), 23, 9, None, None);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    let spritesheet_atlas =
+      TextureAtlas::from_grid(spritesheet_handle.clone(), Vec2::new(16.0, 16.0), 23, 9, None, None);
+    let buttons_atlas = TextureAtlas::from_grid(buttons_handle.clone(), Vec2::new(8.0, 8.0), 34, 24, None, None);
+    let spritesheet_atlas_handle = texture_atlases.add(spritesheet_atlas);
+    let buttons_atlas_handle = texture_atlases.add(buttons_atlas);
     commands.insert_resource(ClearColor(Color::BLACK));
-    commands.insert_resource(TextureHandle(texture_handle));
-    commands.insert_resource(TextureAtlasHandle(texture_atlas_handle));
+    commands.insert_resource(SpriteSheetTextureHandle(spritesheet_handle));
+    commands.insert_resource(SpriteSheetAtlasHandle(spritesheet_atlas_handle));
+    commands.insert_resource(ButtonsAtlasHandle(buttons_atlas_handle));
   }
 }
 
@@ -41,7 +49,7 @@ impl TileMapMap {
   pub fn load_from_network(
     tiles: Vec<(Tile, Pos, Passibility)>,
     commands: &mut Commands,
-    texture_handle: &TextureHandle,
+    texture_handle: &SpriteSheetTextureHandle,
   ) -> Self {
     let tilemap_entity = commands.spawn_empty().id();
 
@@ -78,4 +86,12 @@ impl TileMapMap {
     });
     Self {}
   }
+}
+
+pub fn distance(from: &TilePos, to: &TilePos) -> u32 {
+  ((from.x.abs_diff(to.x).pow(2) + from.y.abs_diff(to.y).pow(2)) as f32).sqrt() as u32
+}
+
+pub fn distance_manhattan(from: &TilePos, to: &TilePos) -> u32 {
+  from.x.abs_diff(to.x) + from.y.abs_diff(to.y)
 }
