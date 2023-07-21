@@ -5,7 +5,7 @@ use bevy_ecs_tilemap::helpers::square_grid::neighbors::Neighbors;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_renet::renet::transport::{NetcodeServerTransport, NetcodeTransportError, ServerAuthentication, ServerConfig};
 use bevy_renet::renet::{ConnectionConfig, DefaultChannel, RenetServer, ServerEvent};
-use immeritorious_common::netcode::{PlayerCommand, Pos, ServerMessage, Tile, PROTOCOL_ID};
+use immeritorious_common::netcode::{PlayerCommand, Pos, Sendable, ServerMessage, Tile, PROTOCOL_ID};
 use immeritorious_common::units::{Unit, UnitType};
 use immeritorious_common::Passibility;
 use pathfinding::prelude::astar;
@@ -66,11 +66,7 @@ impl ImmeritoriousServerPlugin {
             .iter()
             .map(|(entity, unit, pos)| (entity, unit.clone(), pos.clone()))
             .collect::<Vec<_>>();
-          server.send_message(
-            *client_id,
-            DefaultChannel::ReliableOrdered,
-            ServerMessage::InitSession { map: tiles, units }.cast(),
-          );
+          server.send_to(*client_id, &ServerMessage::InitSession { map: tiles, units });
         }
         ServerEvent::ClientDisconnected { .. } => {}
       }
@@ -85,13 +81,9 @@ impl ImmeritoriousServerPlugin {
         }
       }
     }
-    server.broadcast_message(
-      DefaultChannel::ReliableOrdered,
-      ServerMessage::UpdateFrame {
-        units: units.iter().map(|(entity, _, pos)| (entity, pos.clone())).collect(),
-      }
-      .cast(),
-    );
+    server.broadcast(&ServerMessage::UpdateFrame {
+      units: units.iter().map(|(entity, _, pos)| (entity, pos.clone())).collect(),
+    });
   }
   fn process_brains(
     mut commands: Commands,

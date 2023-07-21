@@ -2,6 +2,7 @@ use crate::units::Unit;
 use crate::Passibility;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
+use bevy_renet::renet::{DefaultChannel, RenetClient, RenetServer};
 use bincode::serialize;
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,27 @@ use serde::{Deserialize, Serialize};
 // -------------------------------------------------------------------------------------------
 pub const PROTOCOL_ID: u64 = 42;
 pub const RELIABLE_CHANNEL_MAX_LENGTH: u64 = 10240;
+
+pub trait Sendable {
+  fn send<T: Serialize>(&mut self, _message: &T) {}
+  fn send_to<T: Serialize>(&mut self, _client_id: u64, _message: &T) {}
+  fn broadcast<T: Serialize>(&mut self, _message: &T) {}
+}
+
+impl Sendable for RenetClient {
+  fn send<T: Serialize>(&mut self, message: &T) {
+    self.send_message(DefaultChannel::ReliableOrdered, serialize(message).unwrap())
+  }
+}
+
+impl Sendable for RenetServer {
+  fn send_to<T: Serialize>(&mut self, client_id: u64, message: &T) {
+    self.send_message(client_id, DefaultChannel::ReliableOrdered, serialize(message).unwrap())
+  }
+  fn broadcast<T: Serialize>(&mut self, message: &T) {
+    self.broadcast_message(DefaultChannel::ReliableOrdered, serialize(message).unwrap())
+  }
+}
 
 pub enum ServerChannel {
   GameEvent,

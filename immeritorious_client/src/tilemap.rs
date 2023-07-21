@@ -1,10 +1,38 @@
-use crate::prelude::TextureHandle;
+use crate::game::ImmeritoriousState;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use immeritorious_common::netcode::{Pos, Tile};
 use immeritorious_common::Passibility;
 
+#[derive(Resource, Deref)]
+pub struct TextureHandle(pub Handle<Image>);
+
+#[derive(Resource, Deref)]
+pub struct TextureAtlasHandle(pub Handle<TextureAtlas>);
+
 pub struct TileMapPlugin;
+
+impl Plugin for TileMapPlugin {
+  fn build(&self, app: &mut App) {
+    app.add_systems(OnEnter(ImmeritoriousState::Connecting), Self::load_sprite_sheet);
+  }
+}
+
+impl TileMapPlugin {
+  fn load_sprite_sheet(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+  ) {
+    let texture_handle = asset_server.load("spritesheet_01.png");
+
+    let texture_atlas = TextureAtlas::from_grid(texture_handle.clone(), Vec2::new(16.0, 16.0), 23, 9, None, None);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    commands.insert_resource(ClearColor(Color::BLACK));
+    commands.insert_resource(TextureHandle(texture_handle));
+    commands.insert_resource(TextureAtlasHandle(texture_atlas_handle.clone()));
+  }
+}
 
 #[derive(Resource)]
 pub struct TileMapMap {}
@@ -49,11 +77,5 @@ impl TileMapMap {
       ..default()
     });
     Self {}
-  }
-}
-
-impl Plugin for TileMapPlugin {
-  fn build(&self, _app: &mut App) {
-    // app.insert_resource(TileMapMap::with_size(10, 10));
   }
 }
