@@ -1,11 +1,19 @@
-use crate::prelude::PreludePlugin;
+#![allow(incomplete_features)]
+#![feature(adt_const_params)]
+
+use crate::client::ImmeritoriousClientPlugin;
+use crate::prelude::{ImmeritoriousState, PreludePlugin};
 use bevy::prelude::*;
 use bevy::window::{ExitCondition, WindowResolution};
 use bevy_ecs_tilemap::prelude::*;
+use bevy_renet::transport::NetcodeClientPlugin;
+use bevy_renet::RenetClientPlugin;
 
 mod actor;
+mod client;
 mod prelude;
 mod tilemap;
+mod ui;
 
 fn main() {
   App::new()
@@ -23,7 +31,11 @@ fn main() {
         })
         .set(ImagePlugin::default_nearest()),
     )
+    .add_state::<ImmeritoriousState>()
     .add_plugins(PreludePlugin)
     .add_plugins(TilemapPlugin)
+    .add_plugins(RenetClientPlugin)
+    .add_plugins(NetcodeClientPlugin)
+    .add_plugins(ImmeritoriousClientPlugin)
     .run();
 }

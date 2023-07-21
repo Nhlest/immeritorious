@@ -1,0 +1,22 @@
+[package]
+name = "immeritorious_common"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+
+[dependencies]
+serde = "1.0.*"
+serde_derive = "1.0.*"
+bincode = "1.3.*"
+
+[dependencies.bevy]
+version = "0.11.*"
+default-features = false
+features = ["dynamic_linking", "bevy_asset", "bevy_core_pipeline"]
+
+[dependencies.bevy_renet]
+git = "https://github.com/lucaspoffo/renet"
+branch = "master"

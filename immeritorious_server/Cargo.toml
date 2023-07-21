@@ -1,0 +1,27 @@
+[package]
+name = "immeritorious_server"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+rand = "0.8.*"
+ldtk_rust = "0.6.*"
+pathfinding = "4.3.*"
+immeritorious_common = { path = "../immeritorious_common" }
+serde = "1.0.*"
+bincode = "1.3.*"
+
+[dependencies.bevy]
+version = "0.11.*"
+default-features = false
+features = ["dynamic_linking", "bevy_asset", "bevy_core_pipeline"]
+
+[dependencies.bevy_ecs_tilemap]
+git = "https://github.com/mwbryant/bevy_ecs_tilemap/"
+branch = "bevy_0.11"
+
+[dependencies.bevy_renet]
+git = "https://github.com/lucaspoffo/renet"
+branch = "master"
