@@ -5,9 +5,14 @@ use bevy::prelude::*;
 use bevy_renet::renet::transport::{ClientAuthentication, NetcodeClientTransport};
 use bevy_renet::renet::{ConnectionConfig, DefaultChannel, RenetClient};
 use bincode::deserialize;
-use immeritorious_common::netcode::{ServerMessage, PROTOCOL_ID};
+use immeritorious_common::netcode::{ServerMessage, PROTOCOL_ID, Pos};
 use std::net::UdpSocket;
 use std::time::SystemTime;
+use bevy::utils::HashMap;
+use bevy_ecs_tilemap::prelude::TilePos;
+
+#[derive(Resource, Deref, DerefMut)]
+pub struct ServerEntities(pub HashMap<Entity, Entity>);
 
 pub struct ImmeritoriousClientPlugin;
 
@@ -15,36 +20,63 @@ impl Plugin for ImmeritoriousClientPlugin {
   fn build(&self, app: &mut App) {
     app.add_systems(
       Update,
-      Self::update_system
-        .run_if(in_state(ImmeritoriousState::Connecting).or_else(in_state(ImmeritoriousState::ConnectedInGame))),
+      Self::update_system_pre_init
+        .run_if(in_state(ImmeritoriousState::Connecting))
     );
+    app.add_systems(
+      Update,
+      Self::update_system_post_init
+        .run_if(in_state(ImmeritoriousState::ConnectedInGame))
+    );
+    app.insert_resource(ServerEntities(HashMap::new()));
   }
 }
 
 impl ImmeritoriousClientPlugin {
-  fn update_system(
+  fn update_system_pre_init(
     mut commands: Commands,
     mut client: ResMut<RenetClient>,
     mut next_state: ResMut<NextState<ImmeritoriousState>>,
     texture_handle: Res<TextureHandle>,
     texture_atlas_handle: Res<TextureAtlasHandle>,
+    mut server_entities: ResMut<ServerEntities>,
   ) {
-    // let message = bincode::serialize(&PlayerCommand::T).unwrap();
-    // client.send_message(DefaultChannel::Unreliable, message);
     while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
       let message: ServerMessage = deserialize(&message).unwrap();
       match message {
         ServerMessage::InitSession { map, units } => {
           TileMapMap::load_from_network(map, &mut commands, texture_handle.as_ref());
-          for (unit, pos) in units.into_iter() {
-            spawn_unit(
+          for (entity, unit, pos) in units.into_iter() {
+            let local_entity = spawn_unit(
               &mut commands,
               texture_atlas_handle.0.clone(),
               unit,
               (pos.0 .0, pos.0 .1),
             );
+            server_entities.insert(entity, local_entity);
           }
           next_state.set(ImmeritoriousState::ConnectedInGame);
+        }
+        _ => {}
+      }
+    }
+  }
+  fn update_system_post_init(
+    mut client: ResMut<RenetClient>,
+    mut server_entities: ResMut<ServerEntities>,
+    mut positions: Query<&mut TilePos>
+  ) {
+    while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
+      let message: ServerMessage = deserialize(&message).unwrap();
+      match message {
+        ServerMessage::InitSession { map, units } => {
+        }
+        ServerMessage::UpdateFrame { units } => {
+          for (server_entity, pos) in units {
+            let mut tile_pos = positions.get_mut(*server_entities.get(&server_entity).unwrap()).unwrap();
+            tile_pos.x = pos.0.0;
+            tile_pos.y = pos.0.1;
+          }
         }
       }
     }

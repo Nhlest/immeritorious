@@ -18,7 +18,7 @@ immeritorious_server = { path = "../immeritorious_server" }
 [dependencies.bevy]
 version = "0.11.*"
 default-features = false
-features = ["dynamic_linking", "wayland", "bevy_winit", "bevy_asset", "bevy_core_pipeline", "bevy_render", "bevy_sprite", "png", "bevy_ui"]
+features = ["wayland", "bevy_winit", "bevy_asset", "bevy_core_pipeline", "bevy_render", "bevy_sprite", "png", "bevy_ui"]
 
 [dependencies.bevy_ecs_tilemap]
 git = "https://github.com/mwbryant/bevy_ecs_tilemap/"
@@ -27,3 +27,6 @@ branch = "bevy_0.11"
 [dependencies.bevy_renet]
 git = "https://github.com/lucaspoffo/renet"
 branch = "master"
+
+[features]
+dynamic = ["bevy/dynamic_linking", "immeritorious_server/dynamic", "immeritorious_common/dynamic"]

@@ -24,7 +24,7 @@ pub fn spawn_unit(
   texture_atlas_handle: Handle<TextureAtlas>,
   unit: Unit,
   location: (u32, u32),
-) {
+) -> Entity {
   commands.spawn((
     into_sprite_sheet_bundle(
       unit.t,
@@ -37,5 +37,5 @@ pub fn spawn_unit(
     ),
     unit,
     TilePos::new(location.0, location.1),
-  ));
+  )).id()
 }

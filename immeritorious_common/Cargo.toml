@@ -15,8 +15,15 @@ bincode = "1.3.*"
 [dependencies.bevy]
 version = "0.11.*"
 default-features = false
-features = ["dynamic_linking", "bevy_asset", "bevy_core_pipeline"]
+features = ["bevy_asset", "bevy_core_pipeline"]
+
+[dependencies.bevy_ecs_tilemap]
+git = "https://github.com/mwbryant/bevy_ecs_tilemap/"
+branch = "bevy_0.11"
 
 [dependencies.bevy_renet]
 git = "https://github.com/lucaspoffo/renet"
 branch = "master"
+
+[features]
+dynamic = ["bevy/dynamic_linking"]

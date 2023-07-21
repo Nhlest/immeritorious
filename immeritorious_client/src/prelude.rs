@@ -2,12 +2,15 @@ use crate::client::new_renet_client;
 use crate::ui::{
   highlight_active_button, regular_button, text_button_activate, text_field_button, text_input, ButtonTag,
 };
+use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy_ecs_tilemap::prelude::TilePos;
 use immeritorious_common::units::Unit;
 use immeritorious_server::start_server;
 use std::thread;
+use bevy_renet::renet::{DefaultChannel, RenetClient};
+use immeritorious_common::netcode::{PlayerCommand, Pos};
 
 pub struct PreludePlugin;
 
@@ -55,6 +58,7 @@ impl Plugin for PreludePlugin {
     fn cursor(
       mut cursor: Query<&mut Transform, With<Cursor>>,
       input: Res<Input<KeyCode>>,
+      mut client: ResMut<RenetClient>
       // mut brains: Query<&mut Brain>,
     ) {
       let mut cursor = cursor.single_mut();
@@ -91,8 +95,8 @@ impl Plugin for PreludePlugin {
         cy -= 1;
       }
       if input.just_pressed(KeyCode::Space) {
-        // let tile_pos_to = TilePos::new(cx as u32, cy as u32);
-        // brains.single_mut().state = BrainState::MovingTo(tile_pos_to);
+        let tile_pos_to = Pos((cx as u32, cy as u32));
+        client.send_message(DefaultChannel::ReliableOrdered, PlayerCommand::MoveTo(tile_pos_to).cast());
       }
       cursor.translation = Vec3::new((cx as f32 - 8.0) * 16.0 + 8.0, (cy as f32 - 8.0) * 16.0 + 8.0, 2.0);
     }
@@ -124,6 +128,7 @@ impl Plugin for PreludePlugin {
           text_field_button::<"Name">(c, asset_server.as_ref(), "Player");
           regular_button::<"Connect">(c, asset_server.as_ref(), "Connect");
           regular_button::<"Start & Connect">(c, asset_server.as_ref(), "Start & Connect");
+          regular_button::<"Quit">(c, asset_server.as_ref(), "Quit");
         });
     }
     fn main_menu(
@@ -131,8 +136,13 @@ impl Plugin for PreludePlugin {
       ip_text: Query<&Text, With<ButtonTag<"IP">>>,
       connect_button: Query<&Interaction, With<ButtonTag<"Connect">>>,
       start_connect_button: Query<&Interaction, With<ButtonTag<"Start & Connect">>>,
+      quit: Query<&Interaction, With<ButtonTag<"Quit">>>,
       mut app_state: ResMut<NextState<ImmeritoriousState>>,
+      mut app_exit: EventWriter<AppExit>,
     ) {
+      if *quit.single() == Interaction::Pressed {
+        app_exit.send(AppExit);
+      }
       if *connect_button.single() == Interaction::Pressed || *start_connect_button.single() == Interaction::Pressed {
         let ip = ip_text.single().sections.first().as_ref().unwrap().value.as_str();
         let ip_str = ip.to_string();
@@ -170,7 +180,7 @@ impl Plugin for PreludePlugin {
       Update,
       (cursor, (update_transforms).chain()).run_if(in_state(ImmeritoriousState::ConnectedInGame)),
     );
-    app.add_systems(OnEnter(ImmeritoriousState::Connecting), (load_sprite_sheet).chain());
+    app.add_systems(OnEnter(ImmeritoriousState::Connecting), load_sprite_sheet);
     app.add_systems(OnEnter(ImmeritoriousState::MainMenu), init_main_menu);
     app.add_systems(OnExit(ImmeritoriousState::MainMenu), clear_main_menu_ui);
   }

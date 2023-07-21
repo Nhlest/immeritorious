@@ -41,15 +41,16 @@ impl Plugin for ImmeritoriousServerPlugin {
 impl ImmeritoriousServerPlugin {
   fn initiate_map(mut commands: Commands) {
     ServerMap::load_from_ldtk("immeritorious_client/assets/map.ldtk", &mut commands);
-    commands.spawn((Unit { t: UnitType::Soldier }, Pos((4, 4))));
-    commands.spawn((Unit { t: UnitType::Soldier }, Pos((7, 3))));
+    commands.spawn((Unit { t: UnitType::Soldier }, Pos((4, 4)), Brain::default()));
+    commands.spawn((Unit { t: UnitType::Soldier }, Pos((7, 3)), Brain::default()));
   }
   fn update_system(
     mut server: ResMut<RenetServer>,
     mut server_events: EventReader<ServerEvent>,
     tiles: Query<(&Tile, &Pos, &Passibility)>,
-    units: Query<(&Unit, &Pos)>,
+    units: Query<(Entity, &Unit, &Pos)>,
     tile_storage: Query<&TileStorage>,
+    mut brains: Query<&mut Brain>,
   ) {
     let tile_storage = tile_storage.single();
     for event in server_events.iter() {
@@ -63,7 +64,7 @@ impl ImmeritoriousServerPlugin {
             .collect::<Vec<_>>();
           let units = units
             .iter()
-            .map(|(unit, pos)| (unit.clone(), pos.clone()))
+            .map(|(entity, unit, pos)| (entity, unit.clone(), pos.clone()))
             .collect::<Vec<_>>();
           server.send_message(
             *client_id,
@@ -75,28 +76,31 @@ impl ImmeritoriousServerPlugin {
       }
     }
     for client_id in server.clients_id().into_iter() {
-      while let Some(message) = server.receive_message(client_id, DefaultChannel::Unreliable) {
-        // let player_message: PlayerCommand = bincode::deserialize(&message).unwrap();
-        // match player_message {
-        //   PlayerCommand::T => {
-        //   }
-        // }
+      while let Some(message) = server.receive_message(client_id, DefaultChannel::ReliableOrdered) {
+        let player_message: PlayerCommand = bincode::deserialize(&message).unwrap();
+        match player_message {
+          PlayerCommand::MoveTo(pos) => {
+            brains.for_each_mut(|mut brain| brain.state = BrainState::MovingTo(TilePos::new(pos.0.0, pos.0.1)));
+          }
+        }
       }
     }
+    server.broadcast_message(DefaultChannel::ReliableOrdered, ServerMessage::UpdateFrame { units: units.iter().map(|(entity, _, pos)| (entity, pos.clone())).collect() }.cast());
   }
   fn process_brains(
     mut commands: Commands,
-    mut brains: Query<(Entity, &mut Brain, &mut TilePos, &Unit), Without<Cooldown>>,
+    mut brains: Query<(Entity, &mut Brain, &mut Pos, &Unit), Without<Cooldown>>,
     tile_storage: Query<&TileStorage>,
     tiles: Query<&Passibility>,
   ) {
     let tile_storage = tile_storage.single();
-    for (entity, mut brain, mut tile_pos, _unit) in &mut brains {
+    for (entity, mut brain, mut pos, _unit) in &mut brains {
       match brain.state {
         BrainState::Idle => {}
         BrainState::MovingTo(pos_to) => {
+          let tile_pos : TilePos = pos.as_ref().into();
           let path = astar(
-            tile_pos.as_ref(),
+            &tile_pos,
             |a| {
               Neighbors::get_square_neighboring_positions(a, &TilemapSize { x: 16, y: 16 }, true)
                 .iter()
@@ -121,8 +125,8 @@ impl ImmeritoriousServerPlugin {
             Some((p, _)) => {
               let next = p[1];
               let d = tile_pos.x.abs_diff(next.x) + tile_pos.y.abs_diff(next.y);
-              *tile_pos = next;
-              if tile_pos.as_ref() == &pos_to {
+              *pos = next.into();
+              if pos.as_ref() == &pos_to.into() {
                 brain.state = BrainState::Idle;
               }
               commands.entity(entity).add(CooldownCommand(if d == 1 { 5 } else { 7 }));

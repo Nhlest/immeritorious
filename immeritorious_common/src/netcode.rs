@@ -1,6 +1,7 @@
 use crate::units::Unit;
 use crate::Passibility;
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::TilePos;
 use bincode::serialize;
 use serde::{Deserialize, Serialize};
 
@@ -29,8 +30,20 @@ pub struct PolarRotation {
   pub theta: f32,
 }
 
-#[derive(Debug, Component, Serialize, Deserialize, Clone, Deref)]
+#[derive(Debug, Component, Serialize, Deserialize, Clone, Deref, PartialEq)]
 pub struct Pos(pub (u32, u32));
+
+impl Into<TilePos> for &Pos {
+  fn into(self) -> TilePos {
+    TilePos::new(self.0.0, self.0.1)
+  }
+}
+
+impl From<TilePos> for Pos {
+  fn from(value: TilePos) -> Self {
+    Pos((value.x, value.y))
+  }
+}
 
 #[derive(Debug, Component, Serialize, Deserialize, Clone)]
 pub struct Tile {
@@ -41,8 +54,11 @@ pub struct Tile {
 pub enum ServerMessage {
   InitSession {
     map: Vec<(Tile, Pos, Passibility)>,
-    units: Vec<(Unit, Pos)>,
+    units: Vec<(Entity, Unit, Pos)>,
   },
+  UpdateFrame {
+    units: Vec<(Entity, Pos)>
+  }
 }
 
 impl ServerMessage {
@@ -69,4 +85,11 @@ pub enum ClientChannel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum PlayerCommand {}
+pub enum PlayerCommand {
+  MoveTo(Pos)
+}
+impl PlayerCommand {
+  pub fn cast(&self) -> Vec<u8> {
+    serialize(self).unwrap()
+  }
+}
