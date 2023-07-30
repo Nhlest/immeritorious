@@ -6,6 +6,7 @@ resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
+#bevy_ecs_tilemap = "0.11.*"
 bevy_renet = "0.0.*"
 pathfinding = "4.3.*"
 ldtk_rust = "0.6.*"
@@ -21,8 +22,8 @@ default-features = false
 features = ["bevy_asset", "bevy_core_pipeline"]
 
 [dependencies.bevy_ecs_tilemap]
-git = "https://github.com/mwbryant/bevy_ecs_tilemap/"
-branch = "bevy_0.11"
+git = "https://github.com/StarArawn/bevy_ecs_tilemap/"
+branch = "main"
 
 [features]
 dynamic = ["bevy/dynamic_linking", "immeritorious_common/dynamic"]

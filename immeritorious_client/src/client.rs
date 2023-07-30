@@ -1,4 +1,4 @@
-use crate::actor::spawn_unit;
+use crate::actor::RenderableSprite;
 use crate::game::ImmeritoriousState;
 use crate::side::{MySide, MySideName};
 use crate::tilemap::{SpriteSheetAtlasHandle, SpriteSheetTextureHandle, TileMapMap};
@@ -9,6 +9,7 @@ use bevy_renet::renet::{ConnectionConfig, DefaultChannel, RenetClient};
 use bimap::BiMap;
 use bincode::deserialize;
 use immeritorious_common::netcode::{ClientMessage, Sendable, ServerMessage, PROTOCOL_ID};
+use immeritorious_common::units::HP;
 use std::net::UdpSocket;
 use std::time::SystemTime;
 
@@ -50,14 +51,14 @@ impl ImmeritoriousClientPlugin {
           clients_side,
         } => {
           TileMapMap::load_from_network(map, &mut commands, texture_handle.as_ref());
-          for (entity, side, unit, pos) in units.into_iter() {
-            let local_entity = spawn_unit(
+          for (entity, side, unit, hp, pos) in units.into_iter() {
+            let local_entity = unit.spawn_renderable(
               &mut commands,
               texture_atlas_handle.0.clone(),
-              unit,
               side,
               (pos.0 .0, pos.0 .1),
             );
+            commands.entity(local_entity).insert(hp);
             server_entities.insert(entity, local_entity);
           }
           next_state.set(ImmeritoriousState::ConnectedInGame);
@@ -72,6 +73,7 @@ impl ImmeritoriousClientPlugin {
     mut client: ResMut<RenetClient>,
     server_entities: ResMut<ServerEntities>,
     mut positions: Query<&mut TilePos>,
+    mut hps: Query<&mut HP>,
   ) {
     while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
       let message: ServerMessage = deserialize(&message).unwrap();
@@ -85,6 +87,10 @@ impl ImmeritoriousClientPlugin {
             tile_pos.x = pos.0 .0;
             tile_pos.y = pos.0 .1;
           }
+        }
+        ServerMessage::ChangeHP { entity, new_hp } => {
+          let client_entity = *server_entities.get_by_left(&entity).unwrap();
+          *hps.get_mut(client_entity).unwrap() = new_hp;
         }
       }
     }

@@ -1,4 +1,5 @@
 use crate::game::ImmeritoriousState;
+use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -6,6 +7,9 @@ pub struct Active;
 
 #[derive(Component)]
 pub struct ButtonTag<const T: &'static str>;
+
+#[derive(Component)]
+pub struct UiTag<const T: &'static str>;
 
 #[derive(Component)]
 pub struct TextField;
@@ -92,6 +96,96 @@ impl UiPlugin {
       }
     }
   }
+}
+
+#[derive(Component)]
+pub struct UnitButton(pub Entity);
+
+#[derive(Component)]
+pub struct UnitButtonRow;
+
+impl UnitButton {
+  pub fn spawn(self, c: &mut ChildBuilder, texture_atlas_handle: Handle<TextureAtlas>) {
+    c.spawn((
+      ButtonBundle {
+        style: Style {
+          width: Val::Px(50.0),
+          height: Val::Px(50.0),
+          border: UiRect::all(Val::Px(2.0)),
+          justify_content: JustifyContent::Center,
+          align_items: AlignItems::Center,
+          ..default()
+        },
+        background_color: Color::rgb(0.1, 0.1, 0.1).into(),
+        border_color: Color::RED.into(),
+        ..default()
+      },
+      self,
+    ))
+    .with_children(|c| {
+      c.spawn(AtlasImageBundle {
+        style: Style {
+          width: Val::Percent(100.0),
+          height: Val::Percent(100.0),
+          ..default()
+        },
+        texture_atlas: texture_atlas_handle,
+        texture_atlas_image: UiTextureAtlasImage { index: 1, ..default() },
+        visibility: Visibility::Hidden,
+        ..default()
+      });
+    });
+  }
+}
+
+pub fn percentage_bar(c: &mut EntityCommands, asset_server: &AssetServer, current: u16, max: u16) -> Entity {
+  c.insert((
+    NodeBundle {
+      style: Style {
+        width: Val::Percent(100.0),
+        height: Val::Px(50.0),
+        border: UiRect::all(Val::Px(2.0)),
+        justify_content: JustifyContent::FlexStart,
+        align_items: AlignItems::Center,
+        ..default()
+      },
+      background_color: Color::rgb(0.8, 0.8, 0.8).into(),
+      border_color: Color::RED.into(),
+      ..default()
+    },
+    UiTag::<"HpBar">,
+  ))
+  .with_children(|c| {
+    c.spawn(NodeBundle {
+      style: Style {
+        width: Val::Percent(100.0 * current as f32 / max as f32),
+        height: Val::Px(50.0),
+        border: UiRect::all(Val::Px(2.0)),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+      },
+      background_color: Color::rgb(0.9, 0.1, 0.1).into(),
+      ..default()
+    })
+    .with_children(|c| {
+      c.spawn(TextBundle {
+        style: Default::default(),
+        text: Text::from_section(
+          format!("{} / {}", current, max),
+          TextStyle {
+            font: asset_server.load("quardratic.ttf"),
+            font_size: 22.0,
+            color: Color::BLACK,
+          },
+        ),
+        text_layout_info: Default::default(),
+        text_flags: Default::default(),
+        ..default()
+      });
+    });
+  })
+  .id()
 }
 
 pub fn regular_button<const TAG: &'static str>(c: &mut ChildBuilder, asset_server: &AssetServer, text: &str) {

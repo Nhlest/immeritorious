@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 
+pub mod buildings;
 pub mod netcode;
 pub mod units;
 

@@ -1,29 +1,14 @@
+use crate::actor::RenderableSprite;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
-use immeritorious_common::units::{Side, Unit, UnitType};
+use immeritorious_common::buildings::{Building, BuildingType};
+use immeritorious_common::units::Side;
 
-pub trait RenderableSprite {
-  fn sprite_id(&self, side: &Side) -> usize;
-  fn into_sprite_sheet_bundle(
-    &self,
-    texture_atlas_handle: Handle<TextureAtlas>,
-    transform: Transform,
-    side: Side,
-  ) -> SpriteSheetBundle;
-  fn spawn_renderable(
-    &self,
-    commands: &mut Commands,
-    texture_atlas_handle: Handle<TextureAtlas>,
-    side: Side,
-    location: (u32, u32),
-  ) -> Entity;
-}
-
-impl RenderableSprite for Unit {
-  fn sprite_id(&self, side: &Side) -> usize {
+impl RenderableSprite for Building {
+  fn sprite_id(&self, _side: &Side) -> usize {
     match self.t {
-      UnitType::Soldier => 83 + 23 * side.0 as usize,
-      UnitType::Farmer => 82 + 23 * side.0 as usize,
+      BuildingType::Sovereignty => 7 * 23 + 5,
+      BuildingType::Farm => 7 * 23 + 6,
     }
   }
   fn into_sprite_sheet_bundle(

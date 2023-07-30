@@ -11,3 +11,6 @@ pub struct MySideName(pub String);
 pub struct UnitSelection {
   pub units: Vec<Entity>,
 }
+
+#[derive(Resource)]
+pub struct PrimeSelection(pub Entity);

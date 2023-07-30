@@ -1,4 +1,4 @@
-use crate::units::{Side, Unit};
+use crate::units::{Side, Unit, HP};
 use crate::Passibility;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
@@ -64,11 +64,15 @@ pub struct Tile {
 pub enum ServerMessage {
   InitSession {
     map: Vec<(Tile, Pos, Passibility)>,
-    units: Vec<(Entity, Side, Unit, Pos)>,
+    units: Vec<(Entity, Side, Unit, HP, Pos)>,
     clients_side: Side,
   },
   UpdateFrame {
     units: Vec<(Entity, Pos)>,
+  },
+  ChangeHP {
+    entity: Entity,
+    new_hp: HP,
   },
 }
 

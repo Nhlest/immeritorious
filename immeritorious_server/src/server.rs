@@ -7,7 +7,7 @@ use bevy_ecs_tilemap::prelude::*;
 use bevy_renet::renet::transport::{NetcodeServerTransport, NetcodeTransportError, ServerAuthentication, ServerConfig};
 use bevy_renet::renet::{ConnectionConfig, DefaultChannel, RenetServer, ServerEvent};
 use immeritorious_common::netcode::{ClientMessage, Pos, Sendable, ServerMessage, Tile, PROTOCOL_ID};
-use immeritorious_common::units::{Side, Unit, UnitType};
+use immeritorious_common::units::{Side, Unit, UnitType, HP};
 use immeritorious_common::Passibility;
 use pathfinding::prelude::astar;
 use std::net::UdpSocket;
@@ -28,10 +28,13 @@ impl Plugin for ImmeritoriousServerPlugin {
         Self::increment_tick,
         Self::clear_cooldowns,
         apply_deferred,
-        (Self::process_connections, Self::update_system, Self::process_brains),
+        Self::update_system,
+        Self::process_brains,
       )
         .chain(),
     );
+
+    app.add_systems(Update, Self::process_connections);
 
     app.insert_resource(FixedTime::new_from_secs(1.0 / 20.0));
 
@@ -43,16 +46,41 @@ impl Plugin for ImmeritoriousServerPlugin {
 impl ImmeritoriousServerPlugin {
   fn initiate_map(mut commands: Commands) {
     ServerMap::load_from_ldtk("immeritorious_client/assets/map.ldtk", &mut commands);
-    commands.spawn((Side(0), Unit { t: UnitType::Soldier }, Pos((4, 4)), Brain::default()));
-    commands.spawn((Side(0), Unit { t: UnitType::Soldier }, Pos((7, 3)), Brain::default()));
-    commands.spawn((Side(1), Unit { t: UnitType::Soldier }, Pos((12, 10)), Brain::default()));
+    commands.spawn((
+      Side(0),
+      HP(11),
+      Unit { t: UnitType::Soldier },
+      Pos((3, 4)),
+      Brain::default(),
+    ));
+    commands.spawn((
+      Side(0),
+      HP(11),
+      Unit { t: UnitType::Soldier },
+      Pos((4, 4)),
+      Brain::default(),
+    ));
+    commands.spawn((
+      Side(0),
+      HP(11),
+      Unit { t: UnitType::Farmer },
+      Pos((7, 3)),
+      Brain::default(),
+    ));
+    commands.spawn((
+      Side(1),
+      HP(11),
+      Unit { t: UnitType::Soldier },
+      Pos((12, 10)),
+      Brain::default(),
+    ));
   }
   fn process_connections(
     mut commands: Commands,
     mut server: ResMut<RenetServer>,
     mut server_events: EventReader<ServerEvent>,
     tiles: Query<(&Tile, &Pos, &Passibility)>,
-    units: Query<(Entity, &Side, &Unit, &Pos)>,
+    units: Query<(Entity, &Side, &Unit, &HP, &Pos)>,
     tile_storage: Query<&TileStorage>,
     sides: Query<&Side, With<ClientId>>,
   ) {
@@ -73,7 +101,7 @@ impl ImmeritoriousServerPlugin {
             .collect::<Vec<_>>();
           let units = units
             .iter()
-            .map(|(entity, side, unit, pos)| (entity, side.clone(), unit.clone(), pos.clone()))
+            .map(|(entity, side, unit, hp, pos)| (entity, side.clone(), unit.clone(), hp.clone(), pos.clone()))
             .collect::<Vec<_>>();
           let side_name = SideName(format!("<UNNAMED> {}", clients_side.0).to_string());
           println!("{} has connected", side_name.0);
@@ -136,6 +164,8 @@ impl ImmeritoriousServerPlugin {
     mut brains: Query<(Entity, &mut Brain, &mut Pos, &Unit), Without<Cooldown>>,
     tile_storage: Query<&TileStorage>,
     tiles: Query<&Passibility>,
+    mut server: ResMut<RenetServer>,
+    mut hps: Query<&mut HP>,
   ) {
     let tile_storage = tile_storage.single();
     for (entity, mut brain, mut pos, _unit) in &mut brains {
@@ -177,6 +207,12 @@ impl ImmeritoriousServerPlugin {
               if pos.as_ref() == &pos_to.into() {
                 brain.state = BrainState::Idle;
               }
+              let mut hp = hps.get_mut(entity).unwrap();
+              hp.0 -= 1;
+              server.broadcast(&ServerMessage::ChangeHP {
+                entity,
+                new_hp: hp.clone(),
+              });
               commands.entity(entity).add(CooldownCommand(if d == 1 { 5 } else { 7 }));
             }
           }

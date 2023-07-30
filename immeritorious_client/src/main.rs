@@ -10,6 +10,7 @@ use bevy_renet::transport::NetcodeClientPlugin;
 use bevy_renet::RenetClientPlugin;
 
 mod actor;
+mod buildings;
 mod client;
 mod game;
 mod input;
