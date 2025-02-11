@@ -1,10 +1,10 @@
-use std::rc::Rc;
+use crate::game::render::GameLoop;
+use crate::game::resources::game_state::GameState;
 use bevy_ecs::schedule::ScheduleLabel;
 use easy_imgui_renderer::glow::Context;
 use easy_imgui_renderer::Renderer;
 use easy_imgui_window::EventFlags;
-use crate::game::render::GameLoop;
-use crate::game::resources::game_state::GameState;
+use std::rc::Rc;
 
 pub struct Game {
   pub gl: Rc<Context>,

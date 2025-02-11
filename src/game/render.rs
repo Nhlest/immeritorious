@@ -1,14 +1,16 @@
+use crate::game::game::{game_handle, game_update, Game};
+use crate::game::resources::game_state::{GameState, I};
+use easy_imgui::image::ImageReader;
+use easy_imgui_renderer::glow::{HasContext, PixelUnpackData};
 use easy_imgui_renderer::{glow, Renderer};
-use easy_imgui_window::{MainWindow, MainWindowStatus};
+use easy_imgui_window::MainWindow;
+use easy_imgui_window::MainWindowStatus;
+use glutin::prelude::GlSurface;
 use std::rc::Rc;
 use std::sync::Arc;
-use easy_imgui_renderer::glow::HasContext;
-use glutin::prelude::GlSurface;
 use winit::application::ApplicationHandler;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::Window;
-use crate::game::game::{game_handle, game_update, Game};
-use crate::game::resources::game_state::GameState;
 
 pub type GameLoop = game_loop::GameLoop<Game, game_loop::Time, (Arc<Window>, MainWindowStatus)>;
 
@@ -18,11 +20,26 @@ pub struct Init {
 
 impl ApplicationHandler for Init {
   fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-    let wattrs = Window::default_attributes().with_title("game_loop");
+    let wattrs = Window::default_attributes().with_title("Comintern Sim");
     let window = MainWindow::new::<()>(event_loop, wattrs).unwrap();
     let gl = Rc::new(window.create_gl_context());
     let (gl_context, surface, window) = unsafe { window.into_pieces() };
     let window = Arc::new(window);
+
+    let tex = unsafe { gl.create_texture().unwrap() } ;
+    let i = ImageReader::open("bg.png").unwrap().decode().unwrap().to_rgba8();
+    unsafe {
+      gl.bind_texture(glow::TEXTURE_2D, Some(tex));
+      gl.tex_parameter_i32( glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE as i32, );
+      gl.tex_parameter_i32( glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE as i32, );
+      gl.tex_parameter_i32( glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32, );
+      gl.tex_parameter_i32( glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32, );
+      gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAX_LEVEL, 0);
+      gl.tex_image_2d(glow::TEXTURE_2D, 0, glow::RGBA as i32, i.width() as i32, i.height() as i32, 0, glow::RGBA, glow::UNSIGNED_BYTE, PixelUnpackData::Slice(Some(std::slice::from_raw_parts(i.as_ptr(), (i.width() * i.height() * 4) as usize))));
+      gl.bind_texture(glow::TEXTURE_2D, None);
+      let a = gl.get_error();
+      println!("{}", a);
+    }
 
     let mut renderer = Renderer::new(gl.clone()).unwrap();
     renderer.set_background_color(None);
@@ -33,12 +50,17 @@ impl ApplicationHandler for Init {
 
     let window_status = MainWindowStatus::default();
 
+    let id = Renderer::map_tex(tex);
+
+    let mut game = GameState::new();
+    game.world.insert_resource(I(id));
+
     let game = Game {
       gl: gl.clone(),
       surface,
       gl_context,
       renderer,
-      app: GameState::new()
+      app: game
     };
     let game_loop = game_loop::GameLoop::new(game, 60, 0.1, (window, window_status));
 

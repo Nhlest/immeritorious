@@ -10,6 +10,7 @@ pub mod main_menu_ui;
 impl UiBuilder for GameState {
   fn do_ui(&mut self, ui: &Ui<Self>) {
     let world = &mut self.world;
+    // TODO: do it through system insertion and removal
     match world.resource::<State>() {
       State::MainMenu => {
         main_menu_ui(world, ui);

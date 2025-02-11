@@ -1,8 +1,8 @@
 use crate::game::components::cell::{Cell, Transform};
-use crate::game::components::province::{Province, Workers};
-use crate::game::resources::game_state::GameState;
+use crate::game::components::province::{Province, ProvinceBundle, Workers};
+use crate::game::resources::game_state::{GameState, I};
 use bevy_ecs::prelude::*;
-use easy_imgui::{lbl, Cond, ItemId, Ui, Vector2, WindowFlags};
+use easy_imgui::{Color, Ui, Vector2};
 
 pub fn dropped_events(
   mut dropped: EventReader<Dropped>,
@@ -18,30 +18,15 @@ pub fn dropped_events(
 pub struct Dropped(Entity, Entity);
 
 pub fn game_ui(world: &mut World, ui: &Ui<GameState>) {
-  ui.with_tooltip(|| {
-    ui.text("Dragging shit");
-  });
-  for (transform, province, mut workers) in world.query::<(&Transform, &Province, &mut Workers)>().iter_mut(world) {
-    ui.set_next_window_pos(Vector2::new(transform.x, transform.y), Cond::Always, Vector2::new(0.0, 0.0));
-    ui.window_config(lbl(&province.name)).flags(WindowFlags::NoMove | WindowFlags::NoResize).with(|| {
-      for i in 0..workers.max {
-        ui.with_push(ItemId(i as usize), || {
-          if if i < workers.current {
-            ui.button(lbl("!"))
-          } else {
-            ui.button(lbl(" "))
-          } {
-            workers.current = i + 1;
-          }
-        });
-        ui.same_line();
-      }
-    });
+  let i = &world.get_resource::<I>().unwrap().0;
+  ui.background_draw_list().add_image(*i, Vector2::new(0.0, 0.0), Vector2::new(800.0, 600.0), Vector2::new(0.0, 0.0), Vector2::new(1.0, 1.0), Color::WHITE);
+  for (transform, province, workers) in world.query::<(&Transform, &Province, &mut Workers)>().iter_mut(world) {
+    ProvinceBundle::render(ui, province, workers, transform);
   }
   world.change_tick();
 }
 
-// -- Time capsule for the dragable logic
+// -- Time capsule for the draggable logic
 // let mut event = None;
 
 // ui.set_next_window_pos(Vector2::new(transform.x + drag.x, transform.y + drag.y), Cond::Always, Vector2::new(0.0, 0.0));
