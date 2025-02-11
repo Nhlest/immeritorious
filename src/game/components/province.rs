@@ -1,6 +1,9 @@
 use bevy_ecs::component::Component;
-use bevy_ecs::prelude::{Bundle, Mut};
-use easy_imgui::{lbl, Color, ColorId, Cond, ItemId, StyleValue, StyleVar, Ui, Vector2, WindowFlags};
+use bevy_ecs::prelude::{Bundle, Entity, Mut, QueryState};
+use bevy_ecs::world::unsafe_world_cell::UnsafeWorldCell;
+use easy_imgui::{lbl, Color, ColorId, Cond, DragDropAcceptFlags, ItemId, StyleValue, StyleVar, Ui, Vector2, WindowFlags};
+use easy_imgui::ColorId::DragDropTarget;
+use crate::game::components::actor::Actor;
 use crate::game::components::cell::Transform;
 use crate::game::resources::game_state::GameState;
 
@@ -53,9 +56,11 @@ const WINDOW_STYLES: ((ColorId, Color), (ColorId, Color), (StyleVar, StyleValue)
 );
 
 impl ProvinceBundle {
-  pub fn render(ui: &Ui<GameState>, province: &Province, mut workers: Mut<Workers>, transform: &Transform) {
-    ui.set_next_window_pos(Vector2::new(transform.x, transform.y), Cond::Always, Vector2::new(0.0, 0.0));
-    ui.with_push(WINDOW_STYLES, ||ui.window_config(lbl(&province.name)).flags(WindowFlags::NoMove | WindowFlags::NoResize).with(|| {
+  pub fn render(ui: &Ui<GameState>, province: &Province, mut workers: Mut<Workers>, transform: &Transform, query: &mut QueryState<&mut Actor>, cel: UnsafeWorldCell) -> (Vector2, Vector2) {
+    ui.set_next_window_pos(Vector2::new(transform.x, transform.y), Cond::FirstUseEver, Vector2::new(0.0, 0.0));
+    let mut mn = Vector2::new(0.0, 0.0);
+    let mut mx = Vector2::new(0.0, 0.0);
+    ui.with_push(WINDOW_STYLES, ||ui.window_config(lbl(&province.name)).flags(WindowFlags::NoResize).with(|| {
       for i in 0..workers.max {
         ui.with_push(ItemId(i as usize), || {
           if if i < workers.current {
@@ -69,10 +74,31 @@ impl ProvinceBundle {
         ui.same_line();
       }
       if ui.button(lbl("-")) { workers.current -= 1; }
+      ui.with_drag_drop_target(|d| {
+        if let Some(a) = d.by_type("oke", DragDropAcceptFlags::None) {
+          let entity = Entity::from_bits(u64::from_le_bytes(a.data().try_into().unwrap()));
+          let mut actor = query.get_mut(unsafe { cel.world_mut() }, entity).unwrap();
+          actor.energy.current -= 1;
+          println!("{:?}", a.data());
+          workers.current -= 1;
+        }
+      });
       if ui.is_item_hovered() { ui.with_tooltip(|| { ui.text("Reduce workers"); }); }
       ui.same_line();
       if ui.button(lbl("+")) { workers.current += 1; }
+      ui.with_drag_drop_target(|d| {
+        if let Some(a) = d.by_type("oke", DragDropAcceptFlags::None) {
+          println!("{:?}", a.data());
+          workers.current += 1;
+        }
+      });
       if ui.is_item_hovered() { ui.with_tooltip(|| { ui.text("Increase workers"); }); }
+
+      mn = ui.get_window_pos();
+      let wh = ui.get_window_height();
+      let ww = ui.get_window_width();
+      mx = Vector2::new(mn.x + ww, mn.y + wh);
     }));
+    return (mn, mx);
   }
 }
